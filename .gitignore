@@ -1,5 +1,4 @@
 # Binaries
-cache-server
 *.exe
 *.dll
 *.so
@@ -36,3 +35,5 @@ Thumbs.db
 *.log
 # Added by goreleaser init:
 dist/
+
+docs/

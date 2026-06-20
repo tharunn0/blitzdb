@@ -7,8 +7,6 @@ type Entry struct {
 }
 
 type Config struct {
-	MaxEntries int64
-	MaxMemory  int64 // bytes
-	DefaultTTL uint64 // minutes
-	Compression string // \"gzip\" or \"snappy\"
+	DefaultTTL  uint64 // minutes
+	Compression string // "gzip" or "snappy"
 }

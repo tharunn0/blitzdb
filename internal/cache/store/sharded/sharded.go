@@ -5,10 +5,8 @@ import (
 	"log"
 	"sync"
 
-	"cache-server/internal/cache/policy"
-	"cache-server/internal/cache/policy/sieve"
-	"cache-server/internal/clock"
-	"cache-server/pkg/types"
+	"github.com/tharunn0/blitzdb/internal/clock"
+	"github.com/tharunn0/blitzdb/pkg/types"
 
 	"github.com/cespare/xxhash/v2"
 )
@@ -21,46 +19,22 @@ const NumShards = 256
 type _ [NumShards & (NumShards - 1)]struct{}
 
 type Shard struct {
-	mu     sync.RWMutex
-	items  map[string]*types.Entry
-	size   int64 // current size in bytes
-	count  int64 // number of entries
-	policy policy.Evictor
+	mu    sync.RWMutex
+	items map[string]*types.Entry
 }
 
-func NewShard(p policy.Evictor) *Shard {
+func NewShard() *Shard {
 	return &Shard{
-		items:  make(map[string]*types.Entry, 1024), // preallocate
-		policy: p,
+		items: make(map[string]*types.Entry, 1024), // preallocate
 	}
 }
 
 func (s *Shard) Set(key string, value []byte, expireTick uint64) {
 	s.mu.Lock()
-
 	defer s.mu.Unlock()
-	oldEntry, exists := s.items[key]
-	if exists {
-		s.size -= int64(len(oldEntry.Value))
-		s.count--
-	}
 
 	entry := &types.Entry{Value: value, ExpireTick: expireTick}
 	s.items[key] = entry
-	s.size += int64(len(value))
-	s.count++
-
-	// Check eviction
-	if s.policy.ShouldEvict(s.count, s.size) {
-		// Use optimized eviction with current metrics
-		if evictorWithMetrics, ok := s.policy.(*sieve.Evictor); ok {
-			evictorWithMetrics.EvictWithMetrics(s.items, s.count, s.size)
-		} else {
-			s.policy.Evict(s.items)
-		}
-		// Update size/count after eviction
-		s.updateSize()
-	}
 }
 
 func (s *Shard) Get(key string, nowTick uint64) ([]byte, bool) {
@@ -79,8 +53,6 @@ func (s *Shard) Get(key string, nowTick uint64) ([]byte, bool) {
 		// Double-check entry still exists and is expired
 		if entry, exists := s.items[key]; exists && entry.ExpireTick < nowTick {
 			delete(s.items, key)
-			s.size -= int64(len(entry.Value))
-			s.count--
 		}
 		s.mu.Unlock()
 		return nil, false
@@ -95,12 +67,7 @@ func (s *Shard) Delete(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	entry, exists := s.items[key]
-	if exists {
-		s.size -= int64(len(entry.Value))
-		s.count--
-		delete(s.items, key)
-	}
+	delete(s.items, key)
 }
 
 func (s *Shard) Janitor(nowTick uint64) {
@@ -109,19 +76,8 @@ func (s *Shard) Janitor(nowTick uint64) {
 
 	for k, e := range s.items {
 		if e.ExpireTick < nowTick { // Fixed: use < instead of <=
-			s.size -= int64(len(e.Value))
-			s.count--
 			delete(s.items, k)
 		}
-	}
-}
-
-func (s *Shard) updateSize() {
-	s.size = 0
-	s.count = 0
-	for _, e := range s.items {
-		s.size += int64(len(e.Value))
-		s.count++
 	}
 }
 
@@ -130,17 +86,12 @@ type Store struct {
 	clock  *clock.Clock
 }
 
-// NewStore creates a new sharded store with per-shard evictors.
-func NewStore(clock *clock.Clock, maxEntries, maxMemory int64) *Store {
+// NewStore creates a new sharded store.
+func NewStore(clock *clock.Clock) *Store {
 	s := &Store{clock: clock}
 
-	// Divide limits across shards
-	perShardEntries := maxEntries / NumShards
-	perShardMemory := maxMemory / NumShards
-
 	for i := 0; i < NumShards; i++ {
-		evictor := sieve.NewEvictor(perShardEntries, perShardMemory)
-		s.shards[i] = NewShard(evictor)
+		s.shards[i] = NewShard()
 	}
 	return s
 }

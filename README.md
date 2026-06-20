@@ -1,11 +1,10 @@
 # Cache Server
 
-A high-performance, production-ready in-memory cache server written in Go with sharded storage, probabilistic eviction, and zero-syscall TTL tracking.
+A high-performance, production-ready in-memory cache server written in Go with sharded storage and zero-syscall TTL tracking.
 
 ## Features
 
 - ✅ **Sharded Architecture**: 256 shards with lock striping for high concurrency
-- ✅ **SIEVE Eviction Policy**: Probabilistic O(1) eviction algorithm
 - ✅ **Logical Clock**: Minute-granularity TTL without syscalls
 - ✅ **Optional Compression**: Snappy compression for large values
 - ✅ **Thread-Safe Metrics**: Atomic counters for monitoring
@@ -29,8 +28,6 @@ cd cache-server
 go build -o cache-server ./cmd/server
 
 # Run
-export CACHE_MAX_ENTRIES=1000000
-export CACHE_MAX_MEMORY=1073741824  # 1GB
 export CACHE_DEFAULT_TTL_MIN=60
 export CACHE_COMPRESSION=snappy
 ./cache-server
@@ -42,12 +39,8 @@ Configure via environment variables:
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `CACHE_MAX_ENTRIES` | Yes* | Maximum number of cache entries | `1000000` |
-| `CACHE_MAX_MEMORY` | Yes* | Maximum memory in bytes | `1073741824` |
 | `CACHE_DEFAULT_TTL_MIN` | No | Default TTL in minutes (default: 60) | `60` |
 | `CACHE_COMPRESSION` | No | Compression type: `snappy` or `none` | `snappy` |
-
-*At least one of `CACHE_MAX_ENTRIES` or `CACHE_MAX_MEMORY` must be set.
 
 ### API Usage
 
@@ -93,13 +86,6 @@ curl http://localhost:8080/health
 
 The cache uses 256 shards to minimize lock contention. Keys are distributed using xxHash for uniform distribution.
 
-### Eviction Policy
-
-Implements the SIEVE algorithm - a probabilistic eviction policy that:
-- Operates in O(1) amortized time
-- Evicts entries randomly with probability based on memory pressure
-- Each shard has its own evictor instance to avoid contention
-
 ### TTL Management
 
 Uses a logical clock that increments every minute, avoiding expensive syscalls on every operation. Expired entries are removed:
@@ -112,7 +98,7 @@ When enabled, values ≥256 bytes are compressed using Snappy. Smaller values sk
 
 ## Performance Characteristics
 
-- **Set**: O(1) average, O(n) worst case during eviction
+- **Set**: O(1)
 - **Get**: O(1) with lazy deletion
 - **Delete**: O(1)
 - **Memory**: Sharded to reduce lock contention
@@ -150,10 +136,6 @@ The server handles SIGINT and SIGTERM signals:
 3. Stops logical clock
 4. Waits up to 10s for in-flight requests
 5. Exits cleanly
-
-### Memory Management
-
-Memory limits are divided across shards. Each shard independently enforces its portion of the limit.
 
 ## Development
 

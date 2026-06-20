@@ -8,16 +8,14 @@ import (
 	"syscall"
 	"time"
 
-	"cache-server/internal/cache/service"
-	"cache-server/internal/config"
-	"cache-server/internal/http/handlers"
-
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
+	"github.com/tharunn0/blitzdb/internal/cache/service"
+	"github.com/tharunn0/blitzdb/internal/config"
+	"github.com/tharunn0/blitzdb/internal/http/handlers"
 )
 
 func main() {
-	// Load and validate configuration
 
 	_ = godotenv.Load()
 	cfg, err := config.Load()
@@ -25,14 +23,11 @@ func main() {
 		log.Fatalf("Configuration error: %v", err)
 	}
 
-	// Create service
 	srv := service.NewService(cfg)
 	h := handlers.NewHandlers(srv)
 
-	// Configure Fiber v3 with production settings
 	app := fiber.New(fiber.Config{
-		AppName:      "Production Cache Server",
-		ServerHeader: "CacheServer",
+		AppName:      "Blitz",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -47,11 +42,9 @@ func main() {
 	api.Get("/metrics", h.MetricsHandler)
 	app.Get("/health", h.HealthHandler)
 
-	// Start janitor in background
 	ctx, cancel := context.WithCancel(context.Background())
 	go srv.Janitor(ctx)
 
-	// Start server in goroutine
 	serverErr := make(chan error, 1)
 	go func() {
 		log.Println("Server starting on :8080")
@@ -60,7 +53,6 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal or server error
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
@@ -71,16 +63,12 @@ func main() {
 		log.Printf("Server error: %v", err)
 	}
 
-	// Graceful shutdown
 	log.Println("Shutting down gracefully...")
 
-	// Stop janitor
 	cancel()
 
-	// Stop service (clock cleanup)
 	srv.Stop()
 
-	// Shutdown HTTP server with timeout
 	if err := app.Shutdown(); err != nil {
 		log.Printf("Shutdown error: %v", err)
 	}

@@ -6,18 +6,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"cache-server/internal/cache/service"
-	"cache-server/pkg/types"
-
 	"github.com/gofiber/fiber/v3"
+	"github.com/tharunn0/blitzdb/internal/cache/service"
+	"github.com/tharunn0/blitzdb/pkg/types"
 )
 
 func setupApp() (*fiber.App, *Handlers) {
 	app := fiber.New()
-	
+
 	cfg := &types.Config{
-		MaxEntries: 1000,
-		MaxMemory:  1024 * 1024,
 		DefaultTTL: 60,
 	}
 	svc := service.NewService(cfg)
@@ -57,7 +54,7 @@ func TestSetAndGetHandler(t *testing.T) {
 	bodyBytes, _ := json.Marshal(setBody)
 	reqSet := httptest.NewRequest("POST", "/api/v1/set", bytes.NewReader(bodyBytes))
 	reqSet.Header.Set("Content-Type", "application/json")
-	
+
 	respSet, err := app.Test(reqSet)
 	if err != nil {
 		t.Fatalf("Failed to test set handler: %v", err)

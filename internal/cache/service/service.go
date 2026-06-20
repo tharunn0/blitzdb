@@ -5,10 +5,10 @@ import (
 	"context"
 	"time"
 
-	"cache-server/internal/cache/store/sharded"
-	"cache-server/internal/clock"
-	"cache-server/internal/metrics"
-	"cache-server/pkg/types"
+	"github.com/tharunn0/blitzdb/internal/cache/store/sharded"
+	"github.com/tharunn0/blitzdb/internal/clock"
+	"github.com/tharunn0/blitzdb/internal/metrics"
+	"github.com/tharunn0/blitzdb/pkg/types"
 
 	"github.com/klauspost/compress/snappy"
 )
@@ -24,8 +24,7 @@ type Service struct {
 
 func NewService(cfg *types.Config) *Service {
 	clk := clock.NewClock()
-	// Create separate evictor per shard by passing limits to store
-	store := sharded.NewStore(clk, cfg.MaxEntries, cfg.MaxMemory)
+	store := sharded.NewStore(clk)
 	m := &metrics.CacheMetrics{}
 
 	s := &Service{

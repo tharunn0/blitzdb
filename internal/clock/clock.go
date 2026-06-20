@@ -7,7 +7,7 @@ import (
 )
 
 type Clock struct {
-	tick uint64
+	tick atomic.Uint64
 	stop chan struct{}
 }
 
@@ -20,7 +20,7 @@ func NewClock() *Clock {
 }
 
 func (c *Clock) Now() uint64 {
-	return atomic.LoadUint64(&c.tick)
+	return c.tick.Load()
 }
 
 func (c *Clock) tickGoroutine() {
@@ -30,7 +30,7 @@ func (c *Clock) tickGoroutine() {
 	for {
 		select {
 		case <-ticker.C:
-			atomic.AddUint64(&c.tick, 1)
+			c.tick.Add(1)
 		case <-c.stop:
 			return
 		}
