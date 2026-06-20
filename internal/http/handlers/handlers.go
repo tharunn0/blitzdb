@@ -3,8 +3,9 @@ package handlers
 
 import (
 	"encoding/json"
+
 	"github.com/gofiber/fiber/v3"
-	"github.com/tharunn0/blitzdb/internal/cache/service"
+	"github.com/tharunn0/blitzdb/internal/service"
 )
 
 type Handlers struct {

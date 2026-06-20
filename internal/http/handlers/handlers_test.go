@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/tharunn0/blitzdb/internal/cache/service"
+	"github.com/tharunn0/blitzdb/internal/service"
 	"github.com/tharunn0/blitzdb/pkg/types"
 )
 

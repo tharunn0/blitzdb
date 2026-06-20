@@ -5,9 +5,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/tharunn0/blitzdb/internal/cache/store/sharded"
 	"github.com/tharunn0/blitzdb/internal/clock"
 	"github.com/tharunn0/blitzdb/internal/metrics"
+	"github.com/tharunn0/blitzdb/internal/shard"
+	"github.com/tharunn0/blitzdb/internal/store"
 	"github.com/tharunn0/blitzdb/pkg/types"
 
 	"github.com/klauspost/compress/snappy"
@@ -16,7 +17,7 @@ import (
 const compressionThreshold = 256 // bytes - only compress values larger than this
 
 type Service struct {
-	store   *sharded.Store
+	store   store.Store
 	clock   *clock.Clock
 	metrics *metrics.CacheMetrics
 	config  *types.Config
@@ -24,7 +25,7 @@ type Service struct {
 
 func NewService(cfg *types.Config) *Service {
 	clk := clock.NewClock()
-	store := sharded.NewStore(clk)
+	store := shard.NewStore(clk)
 	m := &metrics.CacheMetrics{}
 
 	s := &Service{

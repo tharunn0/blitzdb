@@ -10,9 +10,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
-	"github.com/tharunn0/blitzdb/internal/cache/service"
 	"github.com/tharunn0/blitzdb/internal/config"
 	"github.com/tharunn0/blitzdb/internal/http/handlers"
+	"github.com/tharunn0/blitzdb/internal/service"
 )
 
 func main() {

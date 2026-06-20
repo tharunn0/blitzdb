@@ -1,5 +1,5 @@
 // Package sharded implements a sharded in-memory store with lock striping.
-package sharded
+package shard
 
 import (
 	"log"
@@ -45,12 +45,9 @@ func (s *Shard) Get(key string, nowTick uint64) ([]byte, bool) {
 		return nil, false
 	}
 
-	// Check expiration - use < instead of <= to fix off-by-one
 	if entry.ExpireTick < nowTick {
 		s.mu.RUnlock()
-		// Upgrade to write lock for lazy deletion
 		s.mu.Lock()
-		// Double-check entry still exists and is expired
 		if entry, exists := s.items[key]; exists && entry.ExpireTick < nowTick {
 			delete(s.items, key)
 		}
