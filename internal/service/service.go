@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/tharunn0/blitzdb/internal/clock"
+	"github.com/tharunn0/blitzdb/internal/db"
 	"github.com/tharunn0/blitzdb/internal/metrics"
-	"github.com/tharunn0/blitzdb/internal/shard"
+
+	// "github.com/tharunn0/blitzdb/internal/shard"
 	"github.com/tharunn0/blitzdb/internal/store"
 	"github.com/tharunn0/blitzdb/pkg/types"
-
-	"github.com/klauspost/compress/snappy"
 )
 
 const compressionThreshold = 256 // bytes - only compress values larger than this
@@ -25,7 +25,8 @@ type Service struct {
 
 func NewService(cfg *types.Config) *Service {
 	clk := clock.NewClock()
-	store := shard.NewStore(clk)
+	// store := shard.NewStore(clk)
+	store := db.InitDB()
 	m := &metrics.CacheMetrics{}
 
 	s := &Service{
@@ -42,10 +43,10 @@ func (s *Service) Set(key string, value []byte, ttl uint64) error {
 		ttl = s.config.DefaultTTL
 	}
 
-	// Compress if enabled and value is large enough
-	if s.config.Compression == "snappy" && len(value) >= compressionThreshold {
-		value = snappy.Encode(nil, value)
-	}
+	// // Compress if enabled and value is large enough
+	// if s.config.Compression == "snappy" && len(value) >= compressionThreshold {
+	// 	value = snappy.Encode(nil, value)
+	// }
 
 	s.store.Set(key, value, ttl)
 	s.metrics.IncSet()
@@ -61,14 +62,14 @@ func (s *Service) Get(key string) ([]byte, bool) {
 	s.metrics.IncHit()
 
 	// Decompress if needed
-	if s.config.Compression == "snappy" && len(value) > 0 {
-		var err error
-		value, err = snappy.Decode(nil, value)
-		if err != nil {
-			s.metrics.IncCorruption()
-			return nil, false
-		}
-	}
+	// if s.config.Compression == "snappy" && len(value) > 0 {
+	// 	var err error
+	// 	value, err = snappy.Decode(nil, value)
+	// 	if err != nil {
+	// 		s.metrics.IncCorruption()
+	// 		return nil, false
+	// 	}
+	// }
 
 	return value, true
 }
