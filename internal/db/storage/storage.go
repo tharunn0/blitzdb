@@ -9,9 +9,14 @@ import (
 	"time"
 )
 
+const (
+	OpPut byte = iota
+	OpDelete
+)
+
 type Storage struct {
 	db    *os.File
-	index map[string]uint32
+	index map[string]int64
 	close func() error
 }
 
@@ -21,7 +26,7 @@ func Init() *Storage {
 		log.Fatalln(err)
 	}
 
-	s := &Storage{file, make(map[string]uint32), file.Close}
+	s := &Storage{file, make(map[string]int64), file.Close}
 	start := time.Now()
 	err = s.loadIndex()
 	if err != nil {
@@ -35,6 +40,11 @@ func Init() *Storage {
 func (s *Storage) Write(key string, value []byte) error {
 
 	offset, err := s.db.Seek(0, io.SeekEnd)
+	if err != nil {
+		return err
+	}
+
+	err = binary.Write(s.db, binary.LittleEndian, OpPut)
 	if err != nil {
 		return err
 	}
@@ -57,7 +67,7 @@ func (s *Storage) Write(key string, value []byte) error {
 		return err
 	}
 
-	s.index[key] = uint32(offset)
+	s.index[key] = offset
 	return nil
 }
 
@@ -67,9 +77,20 @@ func (s *Storage) Read(key string) ([]byte, error) {
 		return nil, ErrOffsetNotFound
 	}
 
-	_, err := s.db.Seek(int64(offset), io.SeekStart)
+	_, err := s.db.Seek(offset, io.SeekStart)
 	if err != nil {
 		return nil, err
+	}
+
+	var op byte
+
+	err = binary.Read(s.db, binary.LittleEndian, &op)
+	if err != nil {
+		return nil, err
+	}
+
+	if op == OpDelete {
+		return nil, ErrOffsetNotFound
 	}
 
 	var keyLen, valLen uint32
@@ -98,6 +119,35 @@ func (s *Storage) Read(key string) ([]byte, error) {
 	return value, nil
 }
 
+func (s *Storage) Delete(key string) error {
+
+	if _, err := s.db.Seek(0, io.SeekEnd); err != nil {
+		return err
+	}
+
+	err := binary.Write(s.db, binary.LittleEndian, OpDelete)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(s.db, binary.LittleEndian, uint32(len(key)))
+	if err != nil {
+		return err
+	}
+	err = binary.Write(s.db, binary.LittleEndian, uint32(0))
+	if err != nil {
+		return err
+	}
+
+	_, err = s.db.Write([]byte(key))
+	if err != nil {
+		return err
+	}
+
+	delete(s.index, key)
+
+	return nil
+}
+
 func (s *Storage) loadIndex() error {
 	if _, err := s.db.Seek(0, io.SeekStart); err != nil {
 		return err
@@ -106,28 +156,50 @@ func (s *Storage) loadIndex() error {
 	for {
 		offset, _ := s.db.Seek(0, io.SeekCurrent)
 
-		var keyLen, valueLen uint32
-		if err := binary.Read(s.db, binary.LittleEndian, &keyLen); err != nil {
+		var op byte
+
+		if err := binary.Read(s.db, binary.LittleEndian, &op); err != nil {
 			if err == io.EOF {
 				break
 			}
+			log.Println("failed to read op ", err)
+			return err
+		}
+
+		var keyLen, valueLen uint32
+		if err := binary.Read(s.db, binary.LittleEndian, &keyLen); err != nil {
+			if err == io.EOF {
+				log.Println("eof len read :", err)
+				break
+			}
+			log.Println("failed to read key len :", err)
 			return err
 		}
 
 		if err := binary.Read(s.db, binary.LittleEndian, &valueLen); err != nil {
+			log.Println("failed to read value len :", err)
 			return err
 		}
 
 		key := make([]byte, keyLen)
 		if _, err := io.ReadFull(s.db, key); err != nil {
+			log.Println("failed to read key :", err)
 			return err
 		}
 
 		if _, err := s.db.Seek(int64(valueLen), io.SeekCurrent); err != nil {
+			log.Println("failed to skip value len :", err)
 			return err
 		}
 
-		s.index[string(key)] = uint32(offset)
+		switch op {
+		case OpPut:
+			s.index[string(key)] = offset
+		case OpDelete:
+			delete(s.index, string(key))
+
+		}
+
 	}
 
 	return nil

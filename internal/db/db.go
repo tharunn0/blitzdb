@@ -29,6 +29,8 @@ func (db *DB) Get(key string) ([]byte, bool) {
 	return val, true
 }
 
-func (db *DB) Delete(key string) { log.Println("todo Delete") }
+func (db *DB) Delete(key string) {
+	db.storage.Delete(key)
+}
 
 func (db *DB) Janitor() { log.Println("todo Janitor") }
