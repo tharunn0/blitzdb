@@ -24,7 +24,8 @@ type SetRequest struct {
 
 func (h *Handlers) SetHandler(c fiber.Ctx) error {
 	var req SetRequest
-	if err := c.Bind().JSON(&req); err != nil {
+
+	if err := c.Bind().Query(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid JSON"})
 	}
 	if req.Key == "" {
@@ -41,7 +42,7 @@ func (h *Handlers) SetHandler(c fiber.Ctx) error {
 }
 
 func (h *Handlers) GetHandler(c fiber.Ctx) error {
-	key := c.Params("key")
+	key := c.Query("key")
 	if key == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "Key required"})
 	}
@@ -56,7 +57,7 @@ func (h *Handlers) GetHandler(c fiber.Ctx) error {
 }
 
 func (h *Handlers) DelHandler(c fiber.Ctx) error {
-	key := c.Params("key")
+	key := c.Query("key")
 	if key == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "Key required"})
 	}

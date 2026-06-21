@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -32,23 +31,26 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 		BodyLimit:    10 * 1024 * 1024, // 10MB max request size
+
 	})
 
 	// Setup routes
 	api := app.Group("/api/v1")
 	api.Post("/set", h.SetHandler)
-	api.Get("/get/:key", h.GetHandler)
-	api.Delete("/del/:key", h.DelHandler)
+	api.Get("/get", h.GetHandler)
+	api.Delete("/del", h.DelHandler)
 	api.Get("/metrics", h.MetricsHandler)
 	app.Get("/health", h.HealthHandler)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go srv.Janitor(ctx)
+	// ctx, cancel := context.WithCancel(context.Background())
+	// go srv.Janitor(ctx)
+
+	port := ":8080"
 
 	serverErr := make(chan error, 1)
 	go func() {
-		log.Println("Server starting on :8080")
-		if err := app.Listen(":1100"); err != nil {
+		log.Println("Server starting on ", port)
+		if err := app.Listen(port, fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
 			serverErr <- err
 		}
 	}()
@@ -64,8 +66,6 @@ func main() {
 	}
 
 	log.Println("Shutting down gracefully...")
-
-	cancel()
 
 	srv.Stop()
 

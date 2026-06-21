@@ -3,6 +3,7 @@ package service
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/tharunn0/blitzdb/internal/clock"
@@ -39,14 +40,10 @@ func NewService(cfg *types.Config) *Service {
 }
 
 func (s *Service) Set(key string, value []byte, ttl uint64) error {
+	log.Printf("Set req [ key : %s | value: %s ]\n", key, string(value))
 	if ttl == 0 {
 		ttl = s.config.DefaultTTL
 	}
-
-	// // Compress if enabled and value is large enough
-	// if s.config.Compression == "snappy" && len(value) >= compressionThreshold {
-	// 	value = snappy.Encode(nil, value)
-	// }
 
 	s.store.Set(key, value, ttl)
 	s.metrics.IncSet()
@@ -54,22 +51,15 @@ func (s *Service) Set(key string, value []byte, ttl uint64) error {
 }
 
 func (s *Service) Get(key string) ([]byte, bool) {
+
+	log.Printf("Get req [ key : %s ]\n", key)
+
 	value, found := s.store.Get(key)
 	if !found {
 		s.metrics.IncMiss()
 		return nil, false
 	}
 	s.metrics.IncHit()
-
-	// Decompress if needed
-	// if s.config.Compression == "snappy" && len(value) > 0 {
-	// 	var err error
-	// 	value, err = snappy.Decode(nil, value)
-	// 	if err != nil {
-	// 		s.metrics.IncCorruption()
-	// 		return nil, false
-	// 	}
-	// }
 
 	return value, true
 }
